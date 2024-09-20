@@ -1,7 +1,7 @@
 _target_: src.models.grassy_module.GrassyModule
 
 optimizer:
-  _target_: torch.optim.Adam
+  _target_: torch.optim.AdamW
   _partial_: true
   lr: 0.001
   weight_decay: 0.0
@@ -14,12 +14,13 @@ scheduler:
   patience: 10
 
 net:
-  _target_: src.models.components.simple_dense_net.SimpleDenseNet
-  input_size: 784
-  lin1_size: 64
-  lin2_size: 128
-  lin3_size: 64
-  output_size: 10
+  input_dim: int
+  hidden_dim_autoencoder: int
+  latent_dim: int
+  hidden_dim_property_predictor: int
+  property_dim: 3
+  alpha: 0.1
 
 # compile model for faster training with pytorch 2.0
 compile: false
+
