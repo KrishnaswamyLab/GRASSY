@@ -8,11 +8,12 @@ from src.data.components.drugbank_dataset import DrugBankDataset
 from torch_geometric.loader import DataLoader
 
 class DrugBankDataModule(LightningDataModule):
-    def __init__(self, data_cfg, batch_size: int, num_workers: int, pin_memory: bool):
+    def __init__(self, data_cfg, batch_size: int = 64, num_workers: int, pin_memory: bool):
         """
         Initialize a `DrugBankDataModule`.
 
         :param data_conf: config containing dataset-specific hparams (metadata path, k-NN graph size, batch size)
+        :param batch_size: Batch size for data loader. Defaults to `64`.
         :param num_workers: The number of workers. Defaults to `0`.
         :param pin_memory: Whether to pin memory. Defaults to `False`.
         """
