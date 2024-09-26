@@ -1,3 +1,6 @@
+conda create -n grassy python=3.9 -y
+conda activate grassy
+
 # basic ML
 conda install pytorch=2.1.2 torchvision torchaudio pytorch-cuda==12.1 -c pytorch -c nvidia -y
 pip install lightning==2.0.7
