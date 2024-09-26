@@ -8,7 +8,7 @@ from src.data.components.drugbank_dataset import DrugBankDataset
 from torch_geometric.loader import DataLoader
 
 class DrugBankDataModule(LightningDataModule):
-    def __init__(self, data_cfg, batch_size: int = 64, num_workers: int, pin_memory: bool):
+    def __init__(self, data_cfg, batch_size: int = 64, num_workers: int = 0, pin_memory: bool = False):
         """
         Initialize a `DrugBankDataModule`.
 

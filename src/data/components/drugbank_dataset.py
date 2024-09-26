@@ -5,7 +5,7 @@ from rdkit import Chem
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
-from torch.utils import to_undirected
+from torch_geometric.utils import to_undirected
 from torch_geometric.data import Data
 from torch_cluster import knn_graph
 
