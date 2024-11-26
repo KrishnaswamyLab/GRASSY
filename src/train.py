@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional, Tuple
 
-import hydra
+import hydra, torch
 import lightning as L
 import rootutils
 from lightning import Callback, LightningDataModule, LightningModule, Trainer
@@ -92,7 +92,6 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
 
     return metric_dict, object_dict
 
-
 @hydra.main(version_base="1.3", config_path="../configs", config_name="train.yaml")
 def main(cfg: DictConfig) -> Optional[float]:
     """Main entry point for training.
@@ -114,7 +113,6 @@ def main(cfg: DictConfig) -> Optional[float]:
 
     # return optimized metric
     return metric_value
-
 
 if __name__ == "__main__":
     main()

@@ -2,8 +2,9 @@ _target_: src.data.drugbank_module.DrugBankDataModule
 
 num_workers: 0
 pin_memory: False
-batch_size: 64 # Needs to be divisible by the number of devices (e.g., if in a distributed setup)
+batch_size: 192 # Needs to be divisible by the number of devices (e.g., if in a distributed setup)
 
 data_cfg:
-  metadata_path: "data/raw/sample.csv"
-  k: 5 # number of nearest neighbours considered when creating graph adjacency
+  metadata_path_train: "data/processed/drugbank_12k_processed_with_props.csv"
+  metadata_path_test: "data/processed/chaffer_test.csv"
+  k: 3 # number of nearest neighbours considered when creating graph adjacency

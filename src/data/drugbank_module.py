@@ -1,14 +1,14 @@
 from typing import Any, Dict, Optional, Tuple
 
 import torch
+from torch.utils.data import Dataset
 from lightning import LightningDataModule
-from torch.utils.data import random_split
 
 from src.data.components.drugbank_dataset import DrugBankDataset
 from torch_geometric.loader import DataLoader
 
 class DrugBankDataModule(LightningDataModule):
-    def __init__(self, data_cfg, batch_size: int = 64, num_workers: int = 0, pin_memory: bool = False):
+    def __init__(self, data_cfg, batch_size: int = 64, num_workers: int = 32, pin_memory: bool = False):
         """
         Initialize a `DrugBankDataModule`.
 
@@ -42,7 +42,7 @@ class DrugBankDataModule(LightningDataModule):
         # need not be downloaded from online.
         pass
 
-    def train_dataloader(self) -> DataLoader[Any]:
+    def train_dataloader(self):
         """
         Create and return the train dataloader.
 
@@ -56,7 +56,21 @@ class DrugBankDataModule(LightningDataModule):
             shuffle=True
         )
 
-    def test_dataloader(self) -> DataLoader[Any]:
+    def test_dataloader(self):
+        """
+        Create and return the test dataloader.
+
+        :return: The test dataloader.
+        """
+        return DataLoader(
+            dataset=self.data_test,
+            batch_size=self.hparams.batch_size,
+            num_workers=0,
+            pin_memory=self.hparams.pin_memory,
+            shuffle=False
+        )
+    
+    def predict_dataloader(self):
         """
         Create and return the test dataloader.
 
@@ -70,5 +84,5 @@ class DrugBankDataModule(LightningDataModule):
             shuffle=False
         )
 
-    # def val_dataloader(self) -> DataLoader[Any]:
+    # def val_dataloader(self):
         # pass

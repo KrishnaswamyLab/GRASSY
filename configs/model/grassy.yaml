@@ -14,13 +14,9 @@ scheduler:
   patience: 10
 
 net:
-  input_dim: int
-  hidden_dim_autoencoder: int
-  latent_dim: int
-  hidden_dim_property_predictor: int
-  property_dim: 3
+  input_dim: 74 # number of unique atom types
+  hidden_dim_autoencoder: 512
+  latent_dim: 256
+  hidden_dim_property_predictor: 128
+  property_dim: 5 # number of molecular properties to predict
   alpha: 0.1
-
-# compile model for faster training with pytorch 2.0
-compile: false
-

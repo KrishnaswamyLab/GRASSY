@@ -19,9 +19,7 @@ def scatter_moments(graph, batch_indices, moments_returned=4):
         The output is a dictionary. You can obtain the mean by calling output["mean"] or output["skew"], etc."""
     # Step 1: Aggregate the features of each mini-batch graph into its own tensor
     graph_features = [torch.zeros(0).to(graph) for i in range(torch.max(batch_indices) + 1)]
-    for i, node_features in enumerate(
-        graph
-    ):  # Sort the graph features by graph, according to batch_indices. For each graph, create a tensor whose first row is the first element of each feature, etc.
+    for i, node_features in enumerate(graph):  # Sort the graph features by graph, according to batch_indices. For each graph, create a tensor whose first row is the first element of each feature, etc.
         #        print("node features are",node_features)
         if (
             len(graph_features[batch_indices[i]]) == 0
@@ -47,7 +45,7 @@ def scatter_moments(graph, batch_indices, moments_returned=4):
         def m(i):  # ith moment, computed with derivation data
             return torch.mean(deviation_data ** i, axis=1)
 
-        mean = torch.mean(data, dim=1, keepdim=True)
+        mean = torch.mean(data, dim=-1, keepdim=True)
         if moments_returned >= 1:
             statistical_moments["mean"] = torch.cat(
                 (statistical_moments["mean"], mean.T), dim=0
@@ -70,7 +68,7 @@ def scatter_moments(graph, batch_indices, moments_returned=4):
             )
 
         # skew: 3rd moment divided by cubed standard deviation (sd = sqrt variance), with correction for division by zero (inf -> 0)
-        skew = m(3) / (variance ** (3 / 2))
+        skew = m(3) / ((variance ** (3 / 2)) + 1e-8)
         skew[
             skew > 1000000000000000
         ] = 0  # multivalued tensor division by zero produces inf
@@ -83,7 +81,7 @@ def scatter_moments(graph, batch_indices, moments_returned=4):
             )
 
         # kurtosis: fourth moment, divided by variance squared. Using Fischer's definition to subtract 3 (default in scipy)
-        kurtosis = m(4) / (variance ** 2) - 3
+        kurtosis = (m(4) / ((variance ** 2) + 1e-8)) - 3
         kurtosis[kurtosis > 1000000000000000] = -3
         kurtosis[kurtosis != kurtosis] = -3
         if moments_returned >= 4:
@@ -93,6 +91,9 @@ def scatter_moments(graph, batch_indices, moments_returned=4):
     # Concatenate into one tensor (alex)
     statistical_moments = torch.cat([v for k,v in statistical_moments.items()], axis=1)
     #statistical_moments = torch.cat([statistical_moments['mean'],statistical_moments['variance']],axis=1)
+
+    # import pdb;pdb.set_trace()
+
     return statistical_moments
 
 
@@ -113,8 +114,7 @@ class LazyLayer(torch.nn.Module):
     def reset_parameters(self):
         torch.nn.init.ones_(self.weights)
         
-def gcn_norm(edge_index, edge_weight=None, num_nodes=None,
-             add_self_loops=False, dtype=None):
+def gcn_norm(edge_index, edge_weight=None, num_nodes=None, add_self_loops=False, dtype=None):
     num_nodes = maybe_num_nodes(edge_index, num_nodes)
 
     if edge_weight is None:
@@ -129,10 +129,11 @@ def gcn_norm(edge_index, edge_weight=None, num_nodes=None,
 
     row, col = edge_index[0], edge_index[1]
     deg = scatter_add(edge_weight, col, dim=0, dim_size=num_nodes)
-    deg_inv_sqrt = deg.pow_(-1)
+    # import pdb;pdb.set_trace()
+    # deg_inv_sqrt = deg.pow_(-1)
+    deg_inv_sqrt = torch.reciprocal(deg)
     deg_inv_sqrt.masked_fill_(deg_inv_sqrt == float('inf'), 0)
     return edge_index, deg_inv_sqrt[row] * edge_weight
-
 
 class Diffuse(MessagePassing):
     """ Implements low pass walk with optional weights
@@ -185,7 +186,6 @@ class Diffuse(MessagePassing):
 
 
 def feng_filters():
-    tmp = np.arange(16).reshape(4,4) #tmp doesn't seem to be used!
     results = [4]
     for i in range(2, 4):
         for j in range(0, i):
@@ -249,32 +249,32 @@ class LearnableScattering(torch.nn.Module):
         x = torch.transpose(x, 1, 2)
         x = torch.cat([x, s2], dim=1)
 
-        # x = scatter_mean(x, batch, dim=0)
-        # if hasattr(data, 'batch'):
-        #     x = scatter_moments(x, data.batch, 4)
-        # else:
-        x = scatter_moments(x, torch.zeros(data.x.shape[0], dtype=torch.int32), 4)
-        # print('x returned shape', x.shape)
-        return x#, self.wavelet_constructor
+        # x = scatter_mean(x, data.batch, dim=0)
+        if hasattr(data, 'batch'):
+            x = scatter_moments(x, data.batch, 4)
+        else:
+            x = scatter_moments(x, torch.zeros(data.x.shape[0], dtype=torch.int32), 4)
+
+        return x #, self.wavelet_constructor
 
     def out_shape(self):
         # x * 4 moments * in
         return 11 * 4 * self.in_channels
 
 
-class TSNet(torch.nn.Module):
-    def __init__(self, in_channels, out_channels, edge_in_channels = None, trainable_laziness=False, **kwargs):
-        super().__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.edge_in_channels = edge_in_channels
-        self.trainable_laziness = trainable_laziness
-        self.scatter = Scatter(in_channels, trainable_laziness=trainable_laziness)
-        self.lin1 = Linear(self.scatter.out_shape(), out_channels)
-        self.act = torch.nn.LeakyReLU()
+# class TSNet(torch.nn.Module):
+#     def __init__(self, in_channels, out_channels, edge_in_channels = None, trainable_laziness=False, **kwargs):
+#         super().__init__()
+#         self.in_channels = in_channels
+#         self.out_channels = out_channels
+#         self.edge_in_channels = edge_in_channels
+#         self.trainable_laziness = trainable_laziness
+#         self.scatter = LearnableScattering(in_channels, trainable_laziness=trainable_laziness)
+#         self.lin1 = Linear(self.scatter.out_shape(), out_channels)
+#         self.act = torch.nn.LeakyReLU()
 
-    def forward(self, data):
-        x, sc = self.scatter(data)
-        x = self.act(x)
-        x = self.lin1(x)
-        return x, sc
+#     def forward(self, data):
+#         x, sc = self.scatter(data)
+#         x = self.act(x)
+#         x = self.lin1(x)
+#         return x, sc

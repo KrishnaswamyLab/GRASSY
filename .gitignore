@@ -148,7 +148,10 @@ dmypy.json
 # Lightning-Hydra-Template
 configs/local/default.yaml
 /data/processed/
+/data/raw/
 /logs/
+/ckpt/**
+/saved_private/**
 .env
 
 # Aim logging
