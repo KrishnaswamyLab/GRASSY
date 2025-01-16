@@ -88,10 +88,12 @@ class GrassyModule(LightningModule):
 
         """
         model_outputs = self.model_step(batch)
-        loss = self.alpha * model_outputs[
+        loss = self.alpha / 2 * model_outputs[
             "train/scattering_reconstruction_loss"] + (
-                1 -
-                self.alpha) * model_outputs["train/property_prediction_loss"]
+                1 - self.alpha
+            ) * model_outputs[
+                "train/property_prediction_loss"] + self.alpha / 2 * model_outputs[
+                    "train/contrastive_loss"]
         # import pdb;pdb.set_trace()
 
         if torch.isnan(loss).any():
@@ -104,7 +106,7 @@ class GrassyModule(LightningModule):
                                    batch.y)
 
         self.log("train/scattering_reconstruction_loss",
-                 self.alpha *
+                 self.alpha / 2 *
                  model_outputs["train/scattering_reconstruction_loss"],
                  on_step=False,
                  on_epoch=True,
@@ -113,6 +115,13 @@ class GrassyModule(LightningModule):
 
         self.log("train/property_prediction_loss", (1 - self.alpha) *
                  model_outputs["train/property_prediction_loss"],
+                 on_step=False,
+                 on_epoch=True,
+                 prog_bar=True,
+                 batch_size=batch.y.size(0))
+
+        self.log("train/contrastive_loss",
+                 self.alpha / 2 * model_outputs["train/contrastive_loss"],
                  on_step=False,
                  on_epoch=True,
                  prog_bar=True,
@@ -161,10 +170,13 @@ class GrassyModule(LightningModule):
             scatter_moments_reconstructed, scattering_moments)
         property_prediction_loss = self.property_prediction_loss(
             predicted_properties, properties)
+        contrastive_loss = self.contrastive_loss(
+            scattering_moments, scatter_moments_reconstructed)
         model_outputs = {
             "train/scattering_reconstruction_loss":
             scattering_reconstruction_loss,
             "train/property_prediction_loss": property_prediction_loss,
+            "train/contrastive_loss": contrastive_loss,
             "predicted_properties": predicted_properties,
             'scattering_moments': scattering_moments,
             'scatter_moments_reconstructed': scatter_moments_reconstructed
@@ -215,25 +227,31 @@ class GrassyModule(LightningModule):
         '''
         Contrastive loss for the latent space using Normalized Temp Cross entropy loss
         '''
+        # print("preds_1: ",preds.size(),"\ntargets_1:", targets.size())
         batch_size = preds.size(0)
         preds = F.normalize(preds, dim=1)
         targets = F.normalize(targets, dim=1)
+        # print("preds_2: ",preds.size(),"\ntargets_2:", targets.size())
 
         representations = torch.cat([preds, targets], dim=0)
         similarity_matrix = torch.matmul(representations, representations.T)
-
+        # print("repres: ",representations.size(),"\nsimilarity_matrix_1:", similarity_matrix.size())
         # removing self-similarity
         mask = torch.eye(2 * batch_size, device=representations.device).bool()
         similarity_matrix = similarity_matrix[~mask].view(2 * batch_size, -1)
+        # print("similarity_matrix_2:", similarity_matrix.size())
 
         # labelling +ve pairs
         labels = torch.cat([torch.arange(batch_size) for _ in range(2)],
                            dim=0).to(representations.device)
-        labels = labels.repeat_interleave(
-            similarity_matrix.size(1) // (2 * batch_size))
+        # print("labels_1:", labels.size())
+        # labels = labels.repeat_interleave(
+        #     similarity_matrix.size(1) // (2 * batch_size))
+        # print("labels_2:", labels.size())
 
         # Scale similarities by temperature
         similarity_matrix = similarity_matrix / temperature
+        # print("similarity_matrix_3:", similarity_matrix.size())
 
         loss = F.cross_entropy(similarity_matrix, labels)
         return loss
